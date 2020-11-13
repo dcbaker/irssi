@@ -318,51 +318,9 @@ endif
 
 have_perl = false
 if want_perl
-  perl_cflags = []
-  perl_ldflags = []
-  perl_rpath_flags = []
-  perl_rpath = ''
 
-  #### ccopts ####
-  perl_ccopts = meson.get_cross_property('perl_ccopts', false)
-  if perl_ccopts == false
-    res = run_command(cross_perl, '-MExtUtils::Embed', '-e', 'ccopts')
-    perl_ccopts = res.stdout().strip().split()
-  endif
-  foreach fl : perl_ccopts
-    if fl.startswith('-D') or fl.startswith('-U') or fl.startswith('-I') or fl.startswith('-i') or fl.startswith('-f') or fl.startswith('-m')
-      perl_cflags += fl
-    endif
-  endforeach
+  perl_dep = dependency('perl', required : require_perl)
 
-  perl_cflags += cc.get_supported_arguments('-fPIC')
-
-  #### ldopts ####
-  perl_ldopts = meson.get_cross_property('perl_ldopts', false)
-  if perl_ldopts == false
-    res = run_command(cross_perl, '-MExtUtils::Embed', '-e', 'ldopts')
-    perl_ldopts = res.stdout().strip().split()
-  endif
-  skip_libs = ['-ldb', '-ldbm', '-lndbm', '-lgdbm', '-lc', '-lposix', '-rdynamic']
-  foreach fl : perl_ldopts
-    if not fl.startswith('-A') and not skip_libs.contains(fl)
-      if fl.startswith('-Wl,-rpath,')
-        perl_rpath = fl.split(',')[2]
-        perl_rpath_flags += fl
-      else
-        perl_ldflags += fl
-      endif
-    endif
-  endforeach
-
-  perl_version = meson.get_cross_property('perl_version', false)
-  if perl_version == false
-    perl_version = run_command(cross_perl, '-V::version:').stdout().split('\'')[1]
-  endif
-  perl_dep = declare_dependency(compile_args : perl_cflags, link_args : perl_ldflags,
-    version : perl_version)
-
-  ####
   if not cc.compiles('''
 #include <EXTERN.h>
 #include <perl.h>
@@ -371,7 +329,7 @@ int main()
   perl_alloc();
   return 0;
 }
-''', args : perl_cflags + perl_ldflags + perl_rpath_flags,
+''', dependencies : perl_dep,
      name : 'working Perl support')
     if require_perl
       error('error linking with perl libraries')
